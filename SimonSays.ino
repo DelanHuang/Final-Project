@@ -9,6 +9,8 @@ int GameSize = 10; //rounds the game with last
 int inIndex = 0;
 int outIndex = 0; //output array index
 byte n = 17;
+int timer;        // variable to adjust difficulty
+int active = 0;   // variable to determine if we are in game (0 means in game)
 
 //define a callback for key presses
 TrellisCallback blink(keyEvent evt){
@@ -46,7 +48,25 @@ void setup() {
     trellis.activateKey(i, SEESAW_KEYPAD_EDGE_FALLING);
     trellis.registerCallback(i, blink);
   }
+}
 
+
+
+void loop() {
+  delay(20); //the trellis has a resolution of around 60hz
+  if (active == 0){
+    StartUp();
+  }
+  else{
+    OutArray();
+    UserInput();
+  }
+}
+
+
+/******************************************/
+
+void StartUp(){
   //do a little animation to show we're on
   for (uint16_t i=0; i<trellis.pixels.numPixels(); i++) {
     trellis.pixels.setPixelColor(i, Wheel(map(i, 0, trellis.pixels.numPixels(), 0, 255)));
@@ -58,25 +78,75 @@ void setup() {
     trellis.pixels.show();
     delay(50);
   }
-}
 
-void loop() {
-  delay(20); //the trellis has a resolution of around 60hz
+  delay(250);
 
-  OutArray();
-  UserInput();
+// User can press one of the top four buttons to select difficulty
+  while (active == 0) {
+    
+    int RanNum = random(0,15); // create random number
+    OutArr[outIndex] = RanNum; // send random number to output array
+    if (outIndex < 9){
+      outIndex++;
+    }
+    else{
+      outIndex = 0;
+    }
+    
+    // Set top row of LEDs to green, yellow, orange, and red
+    trellis.pixels.setPixelColor(0, 0x00FF00);      // set first button to green
+    trellis.pixels.setPixelColor(1, 0xFFFF00);      // set second button to yellow
+    trellis.pixels.setPixelColor(2, 0xFF7F00);      // set second button to orange
+    trellis.pixels.setPixelColor(3, 0xFF0000);      // set second button to red
+    trellis.pixels.show();
+
+   trellis.read();
   
+   if (n == 0) {
+     timer = 1000;   // easiest difficulty (green)
+     for (uint16_t i = 0; i < trellis.pixels.numPixels(); i++){
+        trellis.pixels.setPixelColor(i, 0x000000); // turn off pixels before starting game
+        trellis.pixels.show();
+     }
+     active = 1;
+   }
+  
+   else if (n == 1) {
+      timer = 750;    // medium difficulty (yellow)
+      for (uint16_t i = 0; i < trellis.pixels.numPixels(); i++){
+        trellis.pixels.setPixelColor(i, 0x000000); // turn off pixels before starting game
+        trellis.pixels.show();
+     }
+   }
+ 
+   else if (n == 2) {
+      timer = 500;    // mediumer difficulty (orange)
+      for (uint16_t i = 0; i < trellis.pixels.numPixels(); i++){
+        trellis.pixels.setPixelColor(i, 0x000000); // turn off pixels before starting game
+        trellis.pixels.show();
+     }
+     active = 1;
+   }
+ 
+   else if (n == 3) {
+      timer = 250;    // hardest difficulty (red)
+      for (uint16_t i = 0; i < trellis.pixels.numPixels(); i++){
+        trellis.pixels.setPixelColor(i, 0x000000); // turn off pixels before starting game
+        trellis.pixels.show();
+     }
+     active = 1;
+   }
+   else {
+      Serial.print ("Please use one of the four LEDs to select difficulty\n");
+    }
+  }
+  outIndex = 0;
+  n = 17;
 }
-
-
-/******************************************/
 
 void OutArray(){ // Store random number into the output array/ then light up the LEDS based off of Array values. 
   
   if(outIndex <= 9){//dont output more than 10 random numbers. 
-    int RanNum = random(0, 15); //create random number
-    OutArr[outIndex] = RanNum; //send random number to output array
-    
     /*
       Serial.print("outIndex: "); //Serial monitor check for index troubleshooting
       Serial.print(outIndex);
@@ -87,10 +157,10 @@ void OutArray(){ // Store random number into the output array/ then light up the
     for(uint16_t i=0; i <= outIndex; i++) {
       trellis.pixels.setPixelColor(OutArr[i], Wheel(map(OutArr[i], 0, trellis.pixels.numPixels(), 0, 255))); // set LED color
       trellis.pixels.show();//turn on led
-      delay(1000);//delay 1 second
+      delay(timer);//delay 1 second
       trellis.pixels.setPixelColor(OutArr[i], 0); //set LED color to 0 (off)
       trellis.pixels.show();// turn off LED
-      delay(1000);  //delay 1 sec
+      delay(timer);  //delay 1 sec
       }
    
     for(int i = 0;i <= outIndex; i++){ // serial monitor test for out array. displays array values as they are generated. 
@@ -107,7 +177,7 @@ void OutArray(){ // Store random number into the output array/ then light up the
 
 void UserInput(){ //compare button pushes to output array
   
-    while(inIndex < outIndex){ //stay in while-loop until user-inputs are inputted and completely compared to output arrray
+    while(inIndex < outIndex){ //stay in while-loop until user-inputs are inputted and completely compared to output array
       trellis.read();//keep checking for button pushes. 
       //Serial.println("*****in while-loop******");
       // add input timer for button pushes?
@@ -130,9 +200,38 @@ void UserInput(){ //compare button pushes to output array
        if(n == OutArr[inIndex]){
          // Serial.println("*****in 2nd if statement******");
           Serial.println("Good Press");
-          inIndex++; //increment input array index 
+         // Check if user has made it to end of game 
+          if (inIndex < 9){
+             inIndex++; //increment input array index 
+          }
+          // User has successfully completed game
+          else{
+          // Set all pixels to green
+             Serial.println("Success!\n");  
+             for(int i = 0; i < trellis.pixels.numPixels(); i++){
+                trellis.pixels.setPixelColor(i, 0x00FF00);
+                trellis.pixels.show();
+                delay(50);
+                trellis.pixels.setPixelColor(i, 0x000000);
+                trellis.pixels.show();
+                delay(50);
+                trellis.pixels.setPixelColor(i, 0x00FF00);
+                trellis.pixels.show();
+                delay(50);
+                trellis.pixels.setPixelColor(i, 0x000000);
+                trellis.pixels.show();
+                delay(50);
+                trellis.pixels.setPixelColor(i, 0x00FF00);
+                trellis.pixels.show();
+                delay(50);
+             }
+             active = 0;
+             n = 17;
+             StartUp();
+          }
           n = 17; //reset n to any value not in 0-15, so "if" statement waits for new button push.
        }
+       
        
        else{ 
         //display failed game animation, restart game.
